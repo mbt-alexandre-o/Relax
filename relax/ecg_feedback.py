@@ -8,7 +8,7 @@ import wave
 from math import floor
 
 import numpy as np
-from data_array import DataArray
+from relax.data_array import DataArray
 
 ECG_BUFFER_DURATION = 2
 

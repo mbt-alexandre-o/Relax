@@ -2,7 +2,7 @@
 TODO docstring
 """
 import numpy as np
-from data_array import DataArray
+from relax.data_array import DataArray
 from sklearn.linear_model import LinearRegression
 from scipy.signal import firwin, lfilter
 

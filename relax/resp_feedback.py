@@ -1,7 +1,7 @@
 """
 TODO docstring
 """
-from data_array import DataArray
+from relax.data_array import DataArray
 import numpy as np
 
 RESP_BUFFER_DURATION = 10
