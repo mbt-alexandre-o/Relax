@@ -26,10 +26,11 @@ def trigger_loop(biofeedback):
     """
     TODO docstring
     """
-    while biofeedback.audio_on:
+    biofeedback.serial.write(b"s")
+    biofeedback.trigger_ts.append(time.time())
+    while biofeedback.recording:
         last = time.time()
         while time.time() - last < 10:
-            print(time.time() - last)
             if keyboard.is_pressed("q"):
                 biofeedback.audio_on = False
                 biofeedback.recording = False
@@ -37,6 +38,8 @@ def trigger_loop(biofeedback):
             time.sleep(0.1)
         biofeedback.serial.write(b"t")
         biofeedback.trigger_ts.append(time.time())
+    biofeedback.serial.write(b"e")
+    biofeedback.trigger_ts.append(time.time())
 
 
 class Biofeedback:
@@ -202,6 +205,9 @@ class Biofeedback:
         """
         dict_ = {
             "egg_pos": self.egg_pos,
+            #add soudscape order,
+            #block order,
+            "egg_freq": self.egg_freq,
             "ecg_ts": list(np.array(self.ecg_ts, dtype=np.float)),
             "egg_volume": list(np.array(self.egg_volume, dtype=np.float)),
             "resp_volume": list(np.array(self.resp_volume, dtype=np.float)),
