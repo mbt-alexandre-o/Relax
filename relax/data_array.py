@@ -27,7 +27,7 @@ class DataArray(list):
                 del self.sub_buffer[0 : self.down]
             data_sample = down_data_sample
 
-        overload = (len(self) + len(data_sample)) - self.max_len
+        overload = int((len(self) + len(data_sample)) - self.max_len)
         if overload > 0:
             del self[0:overload]
         self += data_sample

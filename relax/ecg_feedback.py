@@ -43,6 +43,18 @@ def get_ecg_wav(biofeedback):
     return get_random_wf(folder + "/ecg")
 
 
+def ecg_modulation(ecg, last_ecg_point, buffer, last_time, now):
+    d_ecg = np.diff([last_ecg_point] + ecg)
+    returned_array = [ecg[-1]]
+    buffer.add_data(d_ecg)
+    if buffer.full():
+        min_decg = min(d_ecg)
+        prop = buffer.prop(min_decg)
+        if prop < 0.2 and now - last_time > 0.5:
+            returned_array.append(now)
+    return returned_array
+
+
 def ecg_feedback(biofeedback):
     """
     TODO docstring

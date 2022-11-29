@@ -113,13 +113,15 @@ class Biofeedback:
         """
         self.soundscapes_folders = [str(Path(__file__).parent / "../tests_sounds")]
         self.egg_wavs = [
-            wave.open(str(Path(__file__).parent / "../tests_sounds/la.wav"), "rb") for _ in self.soundscapes_folders
+            wave.open(str(Path(__file__).parent / "../tests_sounds/la.wav"), "rb")
+            for _ in self.soundscapes_folders
         ]
         self.ecg_wav = wave.open(
             str(Path(__file__).parent / "../tests_sounds/silence.wav"), "rb"
         )
         self.resp_wavs = [
-            wave.open(str(Path(__file__).parent / "../tests_sounds/la.wav"), "rb") for _ in self.soundscapes_folders
+            wave.open(str(Path(__file__).parent / "../tests_sounds/la.wav"), "rb")
+            for _ in self.soundscapes_folders
         ]
 
     def get_audio_volume(self, index):
@@ -156,8 +158,12 @@ class Biofeedback:
             if volume > 0.0:
                 data = np.fromstring(wav.readframes(1024), np.int16) * volume
                 if len(data) < 2048:
-                    wav_array[i] = wave.open(str(Path(__file__).parent / "../tests_sounds/la.wav"), "rb")
-                    data = np.fromstring(wav_array[i].readframes(1024), np.int16) * volume
+                    wav_array[i] = wave.open(
+                        str(Path(__file__).parent / "../tests_sounds/la.wav"), "rb"
+                    )
+                    data = (
+                        np.fromstring(wav_array[i].readframes(1024), np.int16) * volume
+                    )
                 audio_data += data
             else:
                 audio_data += np.zeros(2048)
@@ -196,8 +202,8 @@ class Biofeedback:
         """
         dict_ = {
             "egg_pos": self.egg_pos,
-            #add soudscape order,
-            #block order,
+            # add soudscape order,
+            # block order,
             "egg_freq": self.egg_freq,
             "ecg_ts": list(np.array(self.ecg_ts, dtype=np.float)),
             "egg_volume": list(np.array(self.egg_volume, dtype=np.float)),
@@ -206,8 +212,15 @@ class Biofeedback:
             "trigger_ts": list(np.array(self.trigger_ts, dtype=np.float)),
         }
         date_string = str(date.today())
-        file = str(Path(__file__).parent / f"../records/latency_{self.subject_id}_{date_string}_{self.state}.json")
-        with open(file,"w",encoding="utf8",) as file:
+        file = str(
+            Path(__file__).parent
+            / f"../records/latency_{self.subject_id}_{date_string}_{self.state}.json"
+        )
+        with open(
+            file,
+            "w",
+            encoding="utf8",
+        ) as file:
             json.dump(dict_, file)
 
     def launch_biofeedback(self):

@@ -9,6 +9,7 @@ from scipy.signal import firwin, lfilter
 GAS_DOWN = 20
 EGG_BUFFER_DURATION = 35
 MED_WIN = 250
+EGG_WIN = 0.015
 
 
 def fir_bandpass_filter(data, lowcut, highcut, sampling_rate, order=5):
@@ -36,6 +37,35 @@ def median_filter(data, start_from_end, window_rad):
     return returned_data
 
 
+def egg_modulation(egg,buffer,med_buffer,filter_buffer,time_abscissa,down_sr,egg_freq):
+    """
+    TODO docstring
+    """
+    down_data = buffer.add_data(egg)
+    med_filtered = median_filter(buffer, MED_WIN + len(down_data), MED_WIN)
+    med_buffer.add_data(med_filtered)
+    filtered = fir_bandpass_filter(
+        med_buffer,
+        egg_freq - EGG_WIN,
+        egg_freq + EGG_WIN,
+        down_sr,
+        1000,
+    )
+    filter_buffer.add_data(filtered[-len(down_data) :])
+    if filter_buffer.full():
+        model = LinearRegression().fit(
+            time_abscissa.reshape(-1, 1), filter_buffer
+        )
+        regre = time_abscissa * model.coef_ + model.intercept_
+        mean = np.mean(filter_buffer)
+        clean = filter_buffer - regre + mean
+        modulation = (
+            np.mean(clean[len(clean) - len(down_data) :]) - min(clean)
+        ) / (max(clean) - min(clean))
+        return modulation
+    else:
+        return 0.0
+
 def egg_feedback(biofeedback):
     """
     TODO docstring
@@ -61,8 +91,8 @@ def egg_feedback(biofeedback):
             med_buffer.add_data(med_filtered)
             filtered = fir_bandpass_filter(
                 med_buffer,
-                biofeedback.egg_freq - biofeedback.EGG_WIN,
-                biofeedback.egg_freq + biofeedback.EGG_WIN,
+                biofeedback.egg_freq - EGG_WIN,
+                biofeedback.egg_freq + EGG_WIN,
                 down_sr,
                 1000,
             )

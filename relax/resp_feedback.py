@@ -7,6 +7,15 @@ import numpy as np
 RESP_BUFFER_DURATION = 10
 
 
+def resp_modulation(resp,buffer):
+    """
+    TODO docstring
+    """
+    buffer.add_data(resp)
+    if buffer.full():
+        return buffer.prop(np.mean(resp))
+    return 0.0
+
 def resp_feedback(bfb):
     """
     TODO docstring

@@ -64,7 +64,6 @@ class Biofeedback:
         """
         self.SOUNDSCAPE_DURATION = 30
         self.SOUNDSCAPE_FADE = 5
-        self.EGG_WIN = 0.015
         self.state = state
         self.subject_id = subject_id
         self.sampling_rate = sampling_rate
