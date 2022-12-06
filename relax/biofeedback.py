@@ -50,6 +50,7 @@ class Biofeedback:
     def __init__(
         self,
         state,
+        block,
         subject_id,
         egg_pos,
         egg_freq,
@@ -66,6 +67,7 @@ class Biofeedback:
         self.SOUNDSCAPE_FADE = 5
         self.state = state
         self.subject_id = subject_id
+        self.block = block
         self.sampling_rate = sampling_rate
         self.egg_pos = egg_pos
         self.ecg_poses = ecg_poses
@@ -80,10 +82,10 @@ class Biofeedback:
         self.ecg_ts = []
         self.trigger_ts = []
         self.trigger_thread = Thread(target=trigger_loop, args=(self,))
-        self.audio_thread = Thread(target=play_wav, args=(self,))
         self.egg_thread = Thread(target=egg_feedback, args=(self,))
         self.resp_thread = Thread(target=resp_feedback, args=(self,))
         self.ecg_thread = Thread(target=ecg_feedback, args=(self,))
+        self.initialise_moc_modulation()
         self.initialise_wav_array()
         self.sound_mod = [0.0, 0.5, 0.0]
         self.ft_resp = Client()
@@ -95,6 +97,7 @@ class Biofeedback:
         self.header_resp = self.ft_resp.getHeader()
         self.header_ecg = self.ft_ecg.getHeader()
         self.header_egg = self.ft_egg.getHeader()
+        self.ready = True
         if (
             self.header_resp is None
             or self.header_ecg is None
@@ -103,11 +106,34 @@ class Biofeedback:
             print("Connection to FieldTrip buffer failed !")
         else:
             print("Connection established with the Fieldtrip buffer")
+            self.ready = False
         try:
             self.serial = serial.Serial("/dev/ttyACM0", 115200)
             print("Connection to Serial port established")
         except:
             print("Connection to Serial port failed !")
+            self.ready = False
+        if self.ready:
+            input("Press enter to start")
+            self.launch_biofeedback()
+
+    def initialise_moc_modulation(self):
+        """
+        TODO docstring
+        """
+        record_folder = Path(__file__).parent / "../records/"
+        file_list = os.listdir(record_folder)
+        expected_file = f"moc-modulation_{self.subject_id}_{str(date.today())}.json"
+        if expected_file in file_list:
+            with open(str(record_folder/expected_file),"r") as file:
+                moc_data = json.load(file)
+                self.moc_time = moc_data["time"]
+                self.moc_egg = moc_data["egg_mod"]
+                self.moc_resp = moc_data["resp_mod"]
+                self.moc_ecg = moc_data["ecg_mod"]
+        else:
+            print(f"{expected_file} was not found.")
+            self.ready = False
 
     def initialise_wav_array(self):
         """
@@ -204,8 +230,8 @@ class Biofeedback:
         """
         dict_ = {
             "egg_pos": self.egg_pos,
-            #add soudscape order,
-            #block order,
+            "soudscapes_order": self.soundscapes_folders,
+            'block': self.block,
             "egg_freq": self.egg_freq,
             "ecg_ts": list(np.array(self.ecg_ts, dtype=np.float)),
             "egg_volume": list(np.array(self.egg_volume, dtype=np.float)),
@@ -214,7 +240,8 @@ class Biofeedback:
             "trigger_ts": list(np.array(self.trigger_ts, dtype=np.float)),
         }
         date_string = str(date.today())
-        file = str(Path(__file__).parent / f"../records/biofeedback_{self.subject_id}_{date_string}_{self.state}.json")
+        file = str(Path(__file__).parent /
+                   f"../records/biofeedback_{self.subject_id}_{date_string}_{self.state}.json")
         with open(file,"w",encoding="utf8",) as file:
             json.dump(dict_, file)
 
@@ -241,6 +268,7 @@ class Biofeedback:
     type=click.Choice(["egg", "ecg", "resp", "moc"], case_sensitive=False),
 )
 @click.option("--subject_id", prompt="Subject id")
+@click.option("--block", type=int, prompt="Block")
 @click.option("--egg_pos", type=int, prompt="Egg pos")
 @click.option("--egg_freq", type=float, prompt="Egg peak frequency")
 @click.option("--ecg_poss", type=list, prompt="Ecg poss", default=[1, 7])
@@ -251,6 +279,7 @@ class Biofeedback:
 def start_biofeedback(
     state,
     subject_id,
+    block,
     egg_pos,
     egg_freq,
     ecg_poss,
@@ -265,6 +294,7 @@ def start_biofeedback(
     bfb = Biofeedback(
         state,
         subject_id,
+        block,
         egg_pos,
         egg_freq,
         ecg_poss,
@@ -273,7 +303,6 @@ def start_biofeedback(
         ip_address,
         port,
     )
-    bfb.launch_biofeedback()
 
 
 if __name__ == "__main__":

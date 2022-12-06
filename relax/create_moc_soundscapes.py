@@ -105,7 +105,7 @@ def create_moc_soundscapes(subject_id,egg_electrod,egg_freq):
         dict_ = {
             "ecg_mod":ecg_mod,
             "resp_mod":resp_mod,
-            "egg_mod":ecg_mod,
+            "egg_mod":egg_mod,
             "time":[x/SAMP_FREQ for x in range(len(ecg_mod))]
         }
         save_file = f"moc-modulation_{subject_id}_{str(date.today())}.json"

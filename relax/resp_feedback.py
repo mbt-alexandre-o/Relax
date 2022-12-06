@@ -3,6 +3,7 @@ TODO docstring
 """
 from relax.data_array import DataArray
 import numpy as np
+import time
 
 RESP_BUFFER_DURATION = 10
 
@@ -40,3 +41,18 @@ def resp_feedback(bfb):
 
             num_smp = new_smp
             num_evt = new_evt
+    else:
+        last_index = 0
+        moc_time = bfb.moc_time
+        moc_resp = bfb.moc_resp
+
+        while not bfb.audio_on:
+            time.sleep(0.1)
+
+        while bfb.recording:
+            in_moc_time = time.time() - bfb.audio_start
+            for i in range(last_index,len(moc_time)-1):
+                if moc_time[i] <= in_moc_time and moc_time[i+1] > in_moc_time:
+                    last_index = i
+                    break
+            bfb.sound_mod[2] = moc_resp[last_index]

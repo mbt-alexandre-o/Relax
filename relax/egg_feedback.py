@@ -5,6 +5,7 @@ import numpy as np
 from relax.data_array import DataArray
 from sklearn.linear_model import LinearRegression
 from scipy.signal import firwin, lfilter
+import time
 
 GAS_DOWN = 20
 EGG_BUFFER_DURATION = 35
@@ -113,3 +114,18 @@ def egg_feedback(biofeedback):
 
             num_smp = new_smp
             num_evt = new_evt
+    else:
+        last_index = 0
+        moc_time = biofeedback.moc_time
+        moc_egg = biofeedback.moc_egg
+
+        while not biofeedback.audio_on:
+            time.sleep(0.1)
+
+        while biofeedback.recording:
+            in_moc_time = time.time() - biofeedback.audio_start
+            for i in range(last_index,len(moc_time)-1):
+                if moc_time[i] <= in_moc_time and moc_time[i+1] > in_moc_time:
+                    last_index = i
+                    break
+            biofeedback.sound_mod[0] = moc_egg[last_index]

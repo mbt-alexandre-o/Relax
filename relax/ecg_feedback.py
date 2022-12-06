@@ -44,6 +44,9 @@ def get_ecg_wav(biofeedback):
 
 
 def ecg_modulation(ecg, last_ecg_point, buffer, last_time, now):
+    """
+    TODO docstring
+    """
     d_ecg = np.diff([last_ecg_point] + ecg)
     returned_array = [ecg[-1]]
     buffer.add_data(d_ecg)
@@ -94,3 +97,26 @@ def ecg_feedback(biofeedback):
 
             num_smp = new_smp
             num_evt = new_evt
+    else:
+        wav_buffer = [get_ecg_wav(biofeedback), get_ecg_wav(biofeedback)]
+        wav_index = 0
+        last_index = 0
+        new_index = 0
+        moc_time = biofeedback.moc_time
+        moc_ecg = biofeedback.moc_ecg
+
+        while not biofeedback.audio_on:
+            time.sleep(0.1)
+
+        while biofeedback.recording:
+            in_moc_time = time.time() - biofeedback.audio_start
+            for i in range(last_index,len(moc_time)-1):
+                if moc_time[i] <= in_moc_time and moc_time[i+1] > in_moc_time:
+                    new_index = i
+                    break
+            if 1 in moc_ecg[last_time:new_index]:
+                biofeedback.ecg_wav = wav_buffer[wav_index]
+                biofeedback.ecg_ts.append(time.time())
+                wav_index = (wav_index + 1) % 2
+                wav_buffer[wav_index] = get_ecg_wav(biofeedback)
+            last_index = new_index
