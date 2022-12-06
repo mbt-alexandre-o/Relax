@@ -62,7 +62,7 @@ def start_recording(subject_id, duration, sampling_rate, ip_address, port):
         date_string = str(date.today())
         file = str(
             Path(__file__).parent
-            / f"../records/resting-state_{subject_id}_{date_string}.fif"
+            / f"../records/RS_{date_string}_{subject_id}.fif"
         )
         raw.save(file)
 
