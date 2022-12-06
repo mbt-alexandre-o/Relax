@@ -51,10 +51,11 @@ def ecg_modulation(ecg, last_ecg_point, buffer, last_time, now):
     returned_array = [ecg[-1]]
     buffer.add_data(d_ecg)
     if buffer.full():
-        min_decg = min(d_ecg)
-        prop = buffer.prop(min_decg)
-        if prop < 0.2 and now - last_time > 0.5:
-            returned_array.append(now)
+        if len(d_ecg)>0:
+            min_decg = min(d_ecg)
+            prop = buffer.prop(min_decg)
+            if prop < 0.2 and now - last_time > 0.5:
+                returned_array.append(now)
     return returned_array
 
 
@@ -114,9 +115,10 @@ def ecg_feedback(biofeedback):
                 if moc_time[i] <= in_moc_time and moc_time[i+1] > in_moc_time:
                     new_index = i
                     break
-            if 1 in moc_ecg[last_time:new_index]:
+            if 1 in moc_ecg[last_index:new_index]:
                 biofeedback.ecg_wav = wav_buffer[wav_index]
                 biofeedback.ecg_ts.append(time.time())
                 wav_index = (wav_index + 1) % 2
                 wav_buffer[wav_index] = get_ecg_wav(biofeedback)
             last_index = new_index
+            time.sleep(0.01)

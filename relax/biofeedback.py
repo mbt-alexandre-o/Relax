@@ -50,8 +50,8 @@ class Biofeedback:
     def __init__(
         self,
         state,
-        block,
         subject_id,
+        block,
         egg_pos,
         egg_freq,
         ecg_poses,
@@ -104,9 +104,9 @@ class Biofeedback:
             or self.header_egg is None
         ):
             print("Connection to FieldTrip buffer failed !")
+            self.ready = False
         else:
             print("Connection established with the Fieldtrip buffer")
-            self.ready = False
         try:
             self.serial = serial.Serial("/dev/ttyACM0", 115200)
             print("Connection to Serial port established")
@@ -123,7 +123,7 @@ class Biofeedback:
         """
         record_folder = Path(__file__).parent / "../records/"
         file_list = os.listdir(record_folder)
-        expected_file = f"moc-modulation_{self.subject_id}_{str(date.today())}.json"
+        expected_file = f"moc-modulation_{str(date.today())}_{self.subject_id}.json"
         if expected_file in file_list:
             with open(str(record_folder/expected_file),"r") as file:
                 moc_data = json.load(file)
@@ -133,7 +133,7 @@ class Biofeedback:
                 self.moc_ecg = moc_data["ecg_mod"]
         else:
             print(f"{expected_file} was not found.")
-            self.ready = False
+            #self.ready = False
 
     def initialise_wav_array(self):
         """

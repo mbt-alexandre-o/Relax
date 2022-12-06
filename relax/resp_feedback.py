@@ -56,3 +56,4 @@ def resp_feedback(bfb):
                     last_index = i
                     break
             bfb.sound_mod[2] = moc_resp[last_index]
+            time.sleep(0.01)

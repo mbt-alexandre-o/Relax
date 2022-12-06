@@ -21,12 +21,10 @@ SAMP_FREQ = 64
 def plot_mod(ecg_mod,resp_mod,egg_mod):
     fig, axs = plt.subplots(3, 1, sharex=True)
     fig.subplots_adjust(hspace=0)
-    time_ = [x/SAMP_FREQ for x in range(len(ecg_mod))]
-    axs[0].set_title(f"")
     axs[-1].set_xlabel("time (s)")
-    axs[0].plot(time_, ecg_mod)
-    axs[1].plot(time_, resp_mod)
-    axs[2].plot(time_, egg_mod)
+    axs[0].plot([x/SAMP_FREQ for x in range(len(ecg_mod))], ecg_mod)
+    axs[1].plot([x/SAMP_FREQ for x in range(len(resp_mod))], resp_mod)
+    axs[2].plot([x/SAMP_FREQ for x in range(len(egg_mod))], egg_mod)
     plt.show()
 
 def get_resp_modulation(sfreq,resp_data):
@@ -40,8 +38,10 @@ def get_resp_modulation(sfreq,resp_data):
     with alive_bar(len(index_list)) as bar:
         for index in index_list:
             resp = resp_data[index:index+samp_size]
-            mod = resp_modulation(resp,buffer)
-            mod_array.append(mod)
+            if len(resp)>0:
+                mod = resp_modulation(resp,buffer)
+                if mod != -1.0:
+                    mod_array.append(mod)
             bar()
     return mod_array
 
@@ -62,8 +62,10 @@ def get_egg_modulation(sfreq, egg_data, egg_freq):
     with alive_bar(len(index_list)) as bar:
         for index in index_list:
             egg = egg_data[index:index+samp_size]
-            mod = egg_modulation(egg,buffer,med_buffer,filter_buffer,time_abscissa,down_sr,egg_freq)
-            mod_array.append(mod)
+            if len(egg)>0:
+                mod = egg_modulation(egg,buffer,med_buffer,filter_buffer,time_abscissa,down_sr,egg_freq)
+                if mod != -1.0:
+                    mod_array.append(mod)
             bar()
     return mod_array
 
@@ -80,13 +82,14 @@ def get_ecg_modulation(sfreq,ecg_data):
     with alive_bar(len(index_list)) as bar:
         for index in index_list:
             ecg = ecg_data[index:index+samp_size]
-            array = ecg_modulation(ecg,last_ecg_point,buffer,last_time,index/sfreq)
-            last_ecg_point = array[0]
-            if len(array)==2:
-                last_time = array[1]
-                heart_beat.append(1)
-            else:
-                heart_beat.append(0)
+            if len(ecg)>0:
+                array = ecg_modulation(ecg,last_ecg_point,buffer,last_time,index/sfreq)
+                last_ecg_point = array[0]
+                if len(array)==2:
+                    last_time = array[1]
+                    heart_beat.append(1)
+                else:
+                    heart_beat.append(0)
             bar()
     return heart_beat
 
