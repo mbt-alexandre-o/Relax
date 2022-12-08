@@ -97,7 +97,7 @@ def get_ecg_modulation(sfreq,ecg_data):
 @click.option("--subject_id", prompt="Subject id")
 @click.option("--egg_electrod",type = int, prompt="Egg electrod")
 @click.option("--egg_freq",type = float, prompt="Egg freq")
-def create_moc_soundscapes(subject_id,egg_electrod,egg_freq):
+def create_mock_soundscapes(subject_id,egg_electrod,egg_freq):
     """
     TODO docstring
     """
@@ -114,18 +114,18 @@ def create_moc_soundscapes(subject_id,egg_electrod,egg_freq):
         ecg_mod = get_ecg_modulation(sfreq,ecg_data)
         resp_mod = get_resp_modulation(sfreq,resp_data)
         egg_mod = get_egg_modulation(sfreq,egg_data,egg_freq)
-        plot_mod(ecg_mod,resp_mod,egg_mod)
         dict_ = {
             "ecg_mod":ecg_mod,
             "resp_mod":resp_mod,
             "egg_mod":egg_mod,
             "time":[x/SAMP_FREQ for x in range(len(ecg_mod))]
         }
-        save_file = f"moc-modulation_{str(date.today())}_{subject_id}.json"
+        save_file = f"mock-modulation_{str(date.today())}_{subject_id}.json"
         with open(str(record_folder/save_file),"w") as f:
             json.dump(dict_,f)
+        plot_mod(ecg_mod,resp_mod,egg_mod)
     else:
         print(f"{expected_file} was not found.")
 
 if __name__ == "__main__":
-    create_moc_soundscapes()
+    create_mock_soundscapes()

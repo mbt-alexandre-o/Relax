@@ -67,7 +67,7 @@ def egg_modulation(egg,buffer,med_buffer,filter_buffer,time_abscissa,down_sr,egg
     else:
         return -1.0
 
-def egg_feedback(biofeedback):
+def egg_feedback(biofeedback,test=False):
     """
     TODO docstring
     """
@@ -115,19 +115,19 @@ def egg_feedback(biofeedback):
 
             num_smp = new_smp
             num_evt = new_evt
-    else:
+    elif not test:
         last_index = 0
-        moc_time = biofeedback.moc_time
-        moc_egg = biofeedback.moc_egg
+        mock_time = biofeedback.mock_time
+        mock_egg = biofeedback.mock_egg
 
         while not biofeedback.audio_on:
             time.sleep(0.1)
 
         while biofeedback.recording:
-            in_moc_time = time.time() - biofeedback.audio_start
-            for i in range(last_index,len(moc_time)-1):
-                if moc_time[i] <= in_moc_time and moc_time[i+1] > in_moc_time:
+            in_mock_time = time.time() - biofeedback.audio_start
+            for i in range(last_index,len(mock_time)-1):
+                if mock_time[i] <= in_mock_time and mock_time[i+1] > in_mock_time:
                     last_index = i
                     break
-            biofeedback.sound_mod[0] = moc_egg[last_index]
+            biofeedback.sound_mod[0] = mock_egg[last_index]
             time.sleep(0.01)

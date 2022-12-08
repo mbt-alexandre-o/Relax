@@ -85,7 +85,7 @@ class Biofeedback:
         self.egg_thread = Thread(target=egg_feedback, args=(self,))
         self.resp_thread = Thread(target=resp_feedback, args=(self,))
         self.ecg_thread = Thread(target=ecg_feedback, args=(self,))
-        self.initialise_moc_modulation()
+        self.initialise_mock_modulation()
         self.initialise_wav_array()
         self.sound_mod = [0.0, 0.5, 0.0]
         self.ft_resp = Client()
@@ -117,20 +117,20 @@ class Biofeedback:
             input("Press enter to start")
             self.launch_biofeedback()
 
-    def initialise_moc_modulation(self):
+    def initialise_mock_modulation(self):
         """
         TODO docstring
         """
         record_folder = Path(__file__).parent / "../records/"
         file_list = os.listdir(record_folder)
-        expected_file = f"moc-modulation_{str(date.today())}_{self.subject_id}.json"
+        expected_file = f"mock-modulation_{str(date.today())}_{self.subject_id}.json"
         if expected_file in file_list:
             with open(str(record_folder/expected_file),"r") as file:
-                moc_data = json.load(file)
-                self.moc_time = moc_data["time"]
-                self.moc_egg = moc_data["egg_mod"]
-                self.moc_resp = moc_data["resp_mod"]
-                self.moc_ecg = moc_data["ecg_mod"]
+                mock_data = json.load(file)
+                self.mock_time = mock_data["time"]
+                self.mock_egg = mock_data["egg_mod"]
+                self.mock_resp = mock_data["resp_mod"]
+                self.mock_ecg = mock_data["ecg_mod"]
         else:
             print(f"{expected_file} was not found.")
             #self.ready = False
@@ -265,7 +265,7 @@ class Biofeedback:
 @click.option(
     "--state",
     prompt="State",
-    type=click.Choice(["egg", "ecg", "resp", "moc"], case_sensitive=False),
+    type=click.Choice(["egg", "ecg", "resp", "mock"], case_sensitive=False),
 )
 @click.option("--subject_id", prompt="Subject id")
 @click.option("--block", type=int, prompt="Block")

@@ -17,7 +17,7 @@ def resp_modulation(resp,buffer):
         return buffer.prop(np.mean(resp))
     return 0.0
 
-def resp_feedback(bfb):
+def resp_feedback(bfb,test=False):
     """
     TODO docstring
     """
@@ -41,19 +41,19 @@ def resp_feedback(bfb):
 
             num_smp = new_smp
             num_evt = new_evt
-    else:
+    elif not test:
         last_index = 0
-        moc_time = bfb.moc_time
-        moc_resp = bfb.moc_resp
+        mock_time = bfb.mock_time
+        mock_resp = bfb.mock_resp
 
         while not bfb.audio_on:
             time.sleep(0.1)
 
         while bfb.recording:
-            in_moc_time = time.time() - bfb.audio_start
-            for i in range(last_index,len(moc_time)-1):
-                if moc_time[i] <= in_moc_time and moc_time[i+1] > in_moc_time:
+            in_mock_time = time.time() - bfb.audio_start
+            for i in range(last_index,len(mock_time)-1):
+                if mock_time[i] <= in_mock_time and mock_time[i+1] > in_mock_time:
                     last_index = i
                     break
-            bfb.sound_mod[2] = moc_resp[last_index]
+            bfb.sound_mod[2] = mock_resp[last_index]
             time.sleep(0.01)
