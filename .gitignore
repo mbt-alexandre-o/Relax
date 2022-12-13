@@ -5,4 +5,4 @@ __pycache__
 *.fif
 *.gdf
 relax.egg-info
-.DS_Store
+*.DS_Store
