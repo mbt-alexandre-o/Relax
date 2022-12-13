@@ -5,6 +5,7 @@ import numpy as np
 from relax.data_array import DataArray
 from sklearn.linear_model import LinearRegression
 from scipy.signal import firwin, lfilter
+import time
 
 GAS_DOWN = 20
 EGG_BUFFER_DURATION = 35
@@ -64,9 +65,9 @@ def egg_modulation(egg,buffer,med_buffer,filter_buffer,time_abscissa,down_sr,egg
         ) / (max(clean) - min(clean))
         return modulation
     else:
-        return 0.0
+        return -1.0
 
-def egg_feedback(biofeedback):
+def egg_feedback(biofeedback,test=False):
     """
     TODO docstring
     """
@@ -87,29 +88,46 @@ def egg_feedback(biofeedback):
             data_sample = biofeedback.ft_egg.getData([num_smp, new_smp - 1]).T
             egg = data_sample[biofeedback.egg_pos]
             down_data = buffer.add_data(egg)
-            med_filtered = median_filter(buffer, MED_WIN + len(down_data), MED_WIN)
-            med_buffer.add_data(med_filtered)
-            filtered = fir_bandpass_filter(
-                med_buffer,
-                biofeedback.egg_freq - EGG_WIN,
-                biofeedback.egg_freq + EGG_WIN,
-                down_sr,
-                1000,
-            )
-            filter_buffer.add_data(filtered[-len(down_data) :])
-            if filter_buffer.full():
-                if not biofeedback.audio_on:
-                    biofeedback.audio_on = True
-                model = LinearRegression().fit(
-                    time_abscissa.reshape(-1, 1), filter_buffer
+            if len(down_data) > 0 :
+                med_filtered = median_filter(buffer, MED_WIN + len(down_data), MED_WIN)
+                med_buffer.add_data(med_filtered)
+                filtered = fir_bandpass_filter(
+                    med_buffer,
+                    biofeedback.egg_freq - EGG_WIN,
+                    biofeedback.egg_freq + EGG_WIN,
+                    down_sr,
+                    1000,
                 )
-                regre = time_abscissa * model.coef_ + model.intercept_
-                mean = np.mean(filter_buffer)
-                clean = filter_buffer - regre + mean
-                modulation = (
-                    np.mean(clean[len(clean) - len(down_data) :]) - min(clean)
-                ) / (max(clean) - min(clean))
-                biofeedback.sound_mod[0] = modulation
+                filter_buffer.add_data(filtered[-len(down_data) :])
+                if filter_buffer.full():
+                    if not biofeedback.audio_on:
+                        biofeedback.audio_on = True
+                    model = LinearRegression().fit(
+                        time_abscissa.reshape(-1, 1), filter_buffer
+                    )
+                    regre = time_abscissa * model.coef_ + model.intercept_
+                    mean = np.mean(filter_buffer)
+                    clean = filter_buffer - regre + mean
+                    modulation = (
+                        np.mean(clean[len(clean) - len(down_data) :]) - min(clean)
+                    ) / (max(clean) - min(clean))
+                    biofeedback.sound_mod[0] = modulation
 
             num_smp = new_smp
             num_evt = new_evt
+    elif not test:
+        last_index = 0
+        mock_time = biofeedback.mock_time
+        mock_egg = biofeedback.mock_egg
+
+        while not biofeedback.audio_on:
+            time.sleep(0.1)
+
+        while biofeedback.recording:
+            in_mock_time = time.time() - biofeedback.audio_start
+            for i in range(last_index,len(mock_time)-1):
+                if mock_time[i] <= in_mock_time and mock_time[i+1] > in_mock_time:
+                    last_index = i
+                    break
+            biofeedback.sound_mod[0] = mock_egg[last_index]
+            time.sleep(0.01)

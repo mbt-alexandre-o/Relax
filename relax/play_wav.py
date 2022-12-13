@@ -16,6 +16,8 @@ def play_wav(biofeedback):
         output=True,
     )
 
+    if biofeedback.state == "mock":
+        biofeedback.audio_on = True
     while not biofeedback.audio_on:
         time.sleep(0.1)
 

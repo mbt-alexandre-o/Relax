@@ -78,10 +78,9 @@ class Biofeedback:
         self.ecg_ts = []
         self.trigger_ts = []
         self.trigger_thread = Thread(target=trigger_loop, args=(self,))
-        self.audio_thread = Thread(target=play_wav, args=(self,))
-        self.egg_thread = Thread(target=egg_feedback, args=(self,))
-        self.resp_thread = Thread(target=resp_feedback, args=(self,))
-        self.ecg_thread = Thread(target=ecg_feedback, args=(self,))
+        self.egg_thread = Thread(target=egg_feedback, args=(self,True,))
+        self.resp_thread = Thread(target=resp_feedback, args=(self,True,))
+        self.ecg_thread = Thread(target=ecg_feedback, args=(self,True,))
         self.initialise_wav_array()
         self.sound_mod = [0.0, 0.5, 0.0]
         self.ft_resp = Client()
@@ -202,8 +201,6 @@ class Biofeedback:
         """
         dict_ = {
             "egg_pos": self.egg_pos,
-            # add soudscape order,
-            # block order,
             "egg_freq": self.egg_freq,
             "ecg_ts": list(np.array(self.ecg_ts, dtype=np.float)),
             "egg_volume": list(np.array(self.egg_volume, dtype=np.float)),
@@ -243,7 +240,7 @@ class Biofeedback:
 @click.option(
     "--state",
     prompt="State",
-    type=click.Choice(["egg", "ecg", "resp", "moc"], case_sensitive=False),
+    type=click.Choice(["egg", "ecg", "resp", "mock"], case_sensitive=False),
 )
 @click.option("--subject_id", prompt="Subject id")
 @click.option("--egg_pos", type=int, prompt="Egg pos")

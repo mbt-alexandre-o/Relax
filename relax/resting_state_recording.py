@@ -64,7 +64,7 @@ def start_recording(subject_id, duration, sampling_rate, ip_address, port):
             Path(__file__).parent
             / f"../records/RS_{date_string}_{subject_id}.fif"
         )
-        raw.save(file)
+        raw.save(file,overwrite=True)
 
 
 if __name__ == "__main__":

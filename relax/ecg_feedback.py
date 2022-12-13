@@ -44,18 +44,22 @@ def get_ecg_wav(biofeedback):
 
 
 def ecg_modulation(ecg, last_ecg_point, buffer, last_time, now):
+    """
+    TODO docstring
+    """
     d_ecg = np.diff([last_ecg_point] + ecg)
     returned_array = [ecg[-1]]
     buffer.add_data(d_ecg)
     if buffer.full():
-        min_decg = min(d_ecg)
-        prop = buffer.prop(min_decg)
-        if prop < 0.2 and now - last_time > 0.5:
-            returned_array.append(now)
+        if len(d_ecg)>0:
+            min_decg = min(d_ecg)
+            prop = buffer.prop(min_decg)
+            if prop < 0.2 and now - last_time > 0.5:
+                returned_array.append(now)
     return returned_array
 
 
-def ecg_feedback(biofeedback):
+def ecg_feedback(biofeedback,test=False):
     """
     TODO docstring
     """
@@ -94,3 +98,27 @@ def ecg_feedback(biofeedback):
 
             num_smp = new_smp
             num_evt = new_evt
+    elif not test:
+        wav_buffer = [get_ecg_wav(biofeedback), get_ecg_wav(biofeedback)]
+        wav_index = 0
+        last_index = 0
+        new_index = 0
+        mock_time = biofeedback.mock_time
+        mock_ecg = biofeedback.mock_ecg
+
+        while not biofeedback.audio_on:
+            time.sleep(0.1)
+
+        while biofeedback.recording:
+            in_mock_time = time.time() - biofeedback.audio_start
+            for i in range(last_index,len(mock_time)-1):
+                if mock_time[i] <= in_mock_time and mock_time[i+1] > in_mock_time:
+                    new_index = i
+                    break
+            if 1 in mock_ecg[last_index:new_index]:
+                biofeedback.ecg_wav = wav_buffer[wav_index]
+                biofeedback.ecg_ts.append(time.time())
+                wav_index = (wav_index + 1) % 2
+                wav_buffer[wav_index] = get_ecg_wav(biofeedback)
+            last_index = new_index
+            time.sleep(0.01)
