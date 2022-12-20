@@ -7,11 +7,11 @@ from sklearn.linear_model import LinearRegression
 from scipy.signal import firwin, lfilter
 import time
 
-GAS_DOWN = 20
-EGG_BUFFER_DURATION = 35
+GAS_DOWN = 30
+EGG_BUFFER_DURATION = 45
 MED_WIN = 250
 EGG_WIN = 0.015
-
+FIR_ORDER = 2000
 
 def fir_bandpass_filter(data, lowcut, highcut, sampling_rate, order=5):
     """
@@ -50,7 +50,7 @@ def egg_modulation(egg,buffer,med_buffer,filter_buffer,time_abscissa,down_sr,egg
         egg_freq - EGG_WIN,
         egg_freq + EGG_WIN,
         down_sr,
-        1000,
+        FIR_ORDER,
     )
     filter_buffer.add_data(filtered[-len(down_data) :])
     if filter_buffer.full():
@@ -71,6 +71,7 @@ def egg_feedback(biofeedback,test=False):
     """
     TODO docstring
     """
+    print("Egg thread started")
     if biofeedback.state == "egg":
         down_sr = biofeedback.sampling_rate / GAS_DOWN
         len_buffer = int(EGG_BUFFER_DURATION * down_sr)
@@ -96,7 +97,7 @@ def egg_feedback(biofeedback,test=False):
                     biofeedback.egg_freq - EGG_WIN,
                     biofeedback.egg_freq + EGG_WIN,
                     down_sr,
-                    1000,
+                    FIR_ORDER,
                 )
                 filter_buffer.add_data(filtered[-len(down_data) :])
                 if filter_buffer.full():
@@ -115,6 +116,7 @@ def egg_feedback(biofeedback,test=False):
 
             num_smp = new_smp
             num_evt = new_evt
+        print("Egg thread finished")
     elif not test:
         last_index = 0
         mock_time = biofeedback.mock_time
@@ -131,3 +133,4 @@ def egg_feedback(biofeedback,test=False):
                     break
             biofeedback.sound_mod[0] = mock_egg[last_index]
             time.sleep(0.01)
+        print("Egg thread finished")

@@ -26,6 +26,7 @@ def trigger_loop(biofeedback):
     """
     TODO docstring
     """
+    print("Trigger thread started")
     biofeedback.serial.write(b"s")
     biofeedback.trigger_ts.append(time.time())
     while biofeedback.recording:
@@ -40,6 +41,7 @@ def trigger_loop(biofeedback):
         biofeedback.trigger_ts.append(time.time())
     biofeedback.serial.write(b"e")
     biofeedback.trigger_ts.append(time.time())
+    print("Trigger thread finished")
 
 
 class Biofeedback:
@@ -63,7 +65,7 @@ class Biofeedback:
         """
         TODO docstring
         """
-        self.SOUNDSCAPE_DURATION = 30
+        self.SOUNDSCAPE_DURATION = 120
         self.SOUNDSCAPE_FADE = 5
         self.state = state
         self.subject_id = subject_id
@@ -128,9 +130,9 @@ class Biofeedback:
             with open(str(record_folder/expected_file),"r") as file:
                 mock_data = json.load(file)
                 self.mock_time = mock_data["time"]
-                self.mock_egg = mock_data["egg_mod"]
-                self.mock_resp = mock_data["resp_mod"]
-                self.mock_ecg = mock_data["ecg_mod"]
+                self.mock_egg = mock_data[f"egg_{self.block}"]
+                self.mock_resp = mock_data[f"resp_{self.block}"]
+                self.mock_ecg = mock_data[f"ecg_{self.block}"]
         else:
             print(f"{expected_file} was not found.")
             #self.ready = False
@@ -215,9 +217,9 @@ class Biofeedback:
         ecg_data = self.get_audio_ecg()
         resp_data = self.get_audio_data(self.resp_wavs)
         newdata = (
-            (egg_data * self.sound_mod[0]) * mod
+            (egg_data * (0.2 + 0.8 * self.sound_mod[0])) * mod
             + (ecg_data * self.sound_mod[1]) * mod
-            + (resp_data * self.sound_mod[2]) * mod
+            + (resp_data * (0.2 + 0.8 * self.sound_mod[2])) * mod
         ).astype(np.int16)
         self.egg_volume.append(self.sound_mod[0])
         self.resp_volume.append(self.sound_mod[2])
@@ -244,19 +246,16 @@ class Biofeedback:
                    f"../records/biofeedback_{self.subject_id}_{date_string}_{self.state}.json")
         with open(file,"w",encoding="utf8",) as file:
             json.dump(dict_, file)
+        print("File saved")
 
     def launch_biofeedback(self):
         """
         TODO docstring
         """
         self.trigger_thread.start()
-        print("Trigger thread started")
         self.ecg_thread.start()
-        print("Ecg thread started")
         self.resp_thread.start()
-        print("Resp thread started")
         self.egg_thread.start()
-        print("Egg thread started")
         play_wav(self)
         self.save()
 
@@ -291,11 +290,11 @@ def start_biofeedback(
     """
     TODO docstring
     """
-    bfb = Biofeedback(
+    Biofeedback(
         state,
         subject_id,
         block,
-        egg_pos,
+        egg_pos-1,
         egg_freq,
         ecg_poss,
         resp_pos,

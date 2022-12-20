@@ -130,7 +130,7 @@ class Biofeedback:
         sc_dur = self.SOUNDSCAPE_DURATION
         fd_dur = self.SOUNDSCAPE_FADE
         t_point = time.time() - self.audio_start
-        if t_point < (sc_dur * len(self.soundscapes_folders)):
+        if t_point < 300:
             if (
                 index * sc_dur + fd_dur <= t_point
                 and t_point <= (index + 1) * sc_dur - fd_dur
@@ -143,6 +143,7 @@ class Biofeedback:
             if index * sc_dur - fd_dur <= t_point and t_point < index * sc_dur + fd_dur:
                 return (t_point - (index * sc_dur - fd_dur)) / (fd_dur * 2)
             return 0.0
+        print("Stop")
         self.audio_on = False
         self.recording = False
         return 0.0
@@ -219,6 +220,7 @@ class Biofeedback:
             encoding="utf8",
         ) as file:
             json.dump(dict_, file)
+        print("File saved")
 
     def launch_biofeedback(self):
         """
@@ -267,7 +269,7 @@ def start_biofeedback(
     bfb = Biofeedback(
         state,
         subject_id,
-        egg_pos,
+        egg_pos-1,
         egg_freq,
         ecg_poss,
         resp_pos,
