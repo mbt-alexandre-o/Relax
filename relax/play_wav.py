@@ -7,6 +7,7 @@ def play_wav(biofeedback):
     """
     TODO docstring
     """
+    print("Sound thread started")
     wf_sample = biofeedback.egg_wavs[0]
     p = pyaudio.PyAudio()
     stream = p.open(
@@ -30,3 +31,4 @@ def play_wav(biofeedback):
     stream.stop_stream()
     stream.close()
     p.terminate()
+    print("Sound thread finished")

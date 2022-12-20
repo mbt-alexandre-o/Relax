@@ -9,6 +9,7 @@ import mne
 import numpy as np
 import matplotlib.pyplot as plt
 import json
+from random import randint
 
 from alive_progress import alive_bar
 from relax.egg_feedback import egg_modulation, GAS_DOWN, EGG_BUFFER_DURATION
@@ -18,14 +19,57 @@ from relax.data_array import DataArray
 
 SAMP_FREQ = 64
 
-def plot_mod(ecg_mod,resp_mod,egg_mod):
-    fig, axs = plt.subplots(3, 1, sharex=True)
-    fig.subplots_adjust(hspace=0)
-    axs[-1].set_xlabel("time (s)")
-    axs[0].plot([x/SAMP_FREQ for x in range(len(ecg_mod))], ecg_mod)
-    axs[1].plot([x/SAMP_FREQ for x in range(len(resp_mod))], resp_mod)
-    axs[2].plot([x/SAMP_FREQ for x in range(len(egg_mod))], egg_mod)
-    plt.show()
+def get_half_crossing(data,padding = 128):
+    """
+    TODO docstring
+    """
+    crossing_points = []
+    for i in range(padding,len(data)):
+        if data[i-1]>0.5 and data[i]<= 0.5 and np.mean(data[i-padding:i])>0.5:
+            crossing_points.append(i)
+    return crossing_points
+
+
+def get_recomposed_mock(data,n_recomposed,padding = 128):
+    """
+    TODO docstring
+    """
+    recomposed_mock = []
+    crossing_points = get_half_crossing(data,padding)
+    pstart = crossing_points[0]
+    pend = crossing_points[-1]
+    for _ in range(n_recomposed):
+        pmid = crossing_points[randint(2,len(crossing_points)-2)]
+        recomposed = data[:pstart]+data[pmid:pend]+data[pstart:pmid]+data[pend:]
+        recomposed_mock.append(recomposed)
+    return recomposed_mock
+
+
+def add_recomposed_mock_to_dict(dict_):
+    for key in ["ecg_or","egg_or","resp_or"]:
+        data = dict_[key]
+        if key == "ecg_or":
+            padding = 1
+        else:
+            padding = 128
+        recomposed_mock = get_recomposed_mock(data,4,padding)
+        for i in range(len(recomposed_mock)):
+            dict_[key.replace("_or","_"+str(i+1))] = recomposed_mock[i]
+
+
+def plot_mod(dict_):
+    """
+    TODO docstring
+    """
+    sub_key = ["or","1","2","3","4"]
+    time = dict_["time"]
+    for key in ["ecg_","egg_","resp_"]: 
+        fig, axs = plt.subplots(5, 1, sharex=True)
+        fig.subplots_adjust(hspace=0)
+        axs[-1].set_xlabel("time (s)")
+        for i,sub in enumerate(sub_key):
+            axs[i].plot([x/64 for x in range(len(dict_[key+sub]))], dict_[key+sub])
+        plt.show()
 
 def get_resp_modulation(sfreq,resp_data):
     """
@@ -97,13 +141,14 @@ def get_ecg_modulation(sfreq,ecg_data):
 @click.option("--subject_id", prompt="Subject id")
 @click.option("--egg_electrod",type = int, prompt="Egg electrod")
 @click.option("--egg_freq",type = float, prompt="Egg freq")
-def create_mock_soundscapes(subject_id,egg_electrod,egg_freq):
+@click.option("--day",type = str, prompt="Date", default=str(date.today()))
+def create_mock_soundscapes(subject_id,egg_electrod,egg_freq,day):
     """
     TODO docstring
     """
     record_folder = Path(__file__).parent / "../records/"
     file_list = os.listdir(record_folder)
-    expected_file = f"RS_{str(date.today())}_{subject_id}.fif"
+    expected_file = f"RS_{day}_{subject_id}.fif"
     if expected_file in file_list:
         print("Resting state file founded.")
         raw = mne.io.Raw(str(record_folder/expected_file))
@@ -115,15 +160,16 @@ def create_mock_soundscapes(subject_id,egg_electrod,egg_freq):
         resp_mod = get_resp_modulation(sfreq,resp_data)
         egg_mod = get_egg_modulation(sfreq,egg_data,egg_freq)
         dict_ = {
-            "ecg_mod":ecg_mod,
-            "resp_mod":resp_mod,
-            "egg_mod":egg_mod,
+            "ecg_or":ecg_mod,
+            "resp_or":resp_mod,
+            "egg_or":egg_mod,
             "time":[x/SAMP_FREQ for x in range(len(ecg_mod))]
         }
-        save_file = f"mock-modulation_{str(date.today())}_{subject_id}.json"
+        add_recomposed_mock_to_dict(dict_)
+        save_file = f"mock-modulation_{day}_{subject_id}.json"
         with open(str(record_folder/save_file),"w") as f:
             json.dump(dict_,f)
-        plot_mod(ecg_mod,resp_mod,egg_mod)
+        plot_mod(dict_)
     else:
         print(f"{expected_file} was not found.")
 

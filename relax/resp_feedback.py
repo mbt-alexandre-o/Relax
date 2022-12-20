@@ -21,6 +21,7 @@ def resp_feedback(bfb,test=False):
     """
     TODO docstring
     """
+    print("Resp thread started")
     if bfb.state == "resp":
         buffer = DataArray(RESP_BUFFER_DURATION * bfb.sampling_rate)
         num_smp, num_evt = bfb.ft_resp.wait(
@@ -41,6 +42,7 @@ def resp_feedback(bfb,test=False):
 
             num_smp = new_smp
             num_evt = new_evt
+        print("Resp thread finished")
     elif not test:
         last_index = 0
         mock_time = bfb.mock_time
@@ -57,3 +59,4 @@ def resp_feedback(bfb,test=False):
                     break
             bfb.sound_mod[2] = mock_resp[last_index]
             time.sleep(0.01)
+        print("Resp thread finished")

@@ -63,6 +63,7 @@ def ecg_feedback(biofeedback,test=False):
     """
     TODO docstring
     """
+    print("Ecg thread started")
     if biofeedback.state == "ecg":
         wav_buffer = [get_ecg_wav(biofeedback), get_ecg_wav(biofeedback)]
         wav_index = 0
@@ -98,6 +99,7 @@ def ecg_feedback(biofeedback,test=False):
 
             num_smp = new_smp
             num_evt = new_evt
+        print("Ecg thread finished")
     elif not test:
         wav_buffer = [get_ecg_wav(biofeedback), get_ecg_wav(biofeedback)]
         wav_index = 0
@@ -122,3 +124,4 @@ def ecg_feedback(biofeedback,test=False):
                 wav_buffer[wav_index] = get_ecg_wav(biofeedback)
             last_index = new_index
             time.sleep(0.01)
+        print("Ecg thread finished")
