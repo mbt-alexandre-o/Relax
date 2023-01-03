@@ -2,28 +2,24 @@
 TODO docstring
 """
 import json
-import os
 from pathlib import Path
 
+from datetime import date
 import click
 from create_mock_soundscapes import plot_mod
 
-
 @click.command()
 @click.option("--subject_id", prompt="Subject id")
-@click.option("--date", prompt="Date")
-def plot_mock(subject_id,date):
+@click.option("--day",type = str, prompt="Date", default=str(date.today()))
+def create_mock_soundscapes(subject_id,day):
     """
     TODO docstring
     """
     record_folder = Path(__file__).parent / "../records/"
-    file_list = os.listdir(record_folder)
-    expected_file = f"mock-modulation_{date}_{subject_id}.json"
-    if expected_file in file_list:
-        with open(str(record_folder/expected_file),"r") as file:
-            data = json.load(file)
-        plot_mod(data["ecg_mod"],data["resp_mod"],data["egg_mod"])
-        
+    with open(str(record_folder)+f"/mock-modulation_{day}_{subject_id}.json","r") as file:
+        data = json.load(file)
+
+    plot_mod(data)
+
 if __name__ == "__main__":
-    plot_mock()
-    
+    create_mock_soundscapes()
