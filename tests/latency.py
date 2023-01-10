@@ -115,9 +115,12 @@ class Biofeedback:
             wave.open(str(Path(__file__).parent / "../tests_sounds/la.wav"), "rb")
             for _ in self.soundscapes_folders
         ]
-        self.ecg_wav = wave.open(
+        self.ecg_wavs = [wave.open(
             str(Path(__file__).parent / "../tests_sounds/silence.wav"), "rb"
-        )
+        ),wave.open(
+            str(Path(__file__).parent / "../tests_sounds/silence.wav"), "rb"
+        )]
+        self.ecg_index = 0
         self.resp_wavs = [
             wave.open(str(Path(__file__).parent / "../tests_sounds/la.wav"), "rb")
             for _ in self.soundscapes_folders
@@ -173,7 +176,7 @@ class Biofeedback:
         """
         TODO docstring
         """
-        data = np.fromstring(self.ecg_wav.readframes(1024), np.int16)
+        data = np.fromstring(self.ecg_wavs[self.ecg_index].readframes(1024), np.int16)
         if len(data) < 2048:
             data = np.zeros(2048)
         return data
