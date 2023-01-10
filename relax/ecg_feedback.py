@@ -65,8 +65,7 @@ def ecg_feedback(biofeedback,test=False):
     """
     print("Ecg thread started")
     if biofeedback.state == "ecg":
-        wav_buffer = [get_ecg_wav(biofeedback), get_ecg_wav(biofeedback)]
-        wav_index = 0
+        biofeedback.ecg_wavs = [get_ecg_wav(biofeedback), get_ecg_wav(biofeedback)]
         buffer = DataArray(ECG_BUFFER_DURATION * biofeedback.sampling_rate)
         last_ecg_point = 0
         last_time = time.time()
@@ -91,18 +90,17 @@ def ecg_feedback(biofeedback,test=False):
                 min_decg = min(d_ecg)
                 prop = buffer.prop(min_decg)
                 if prop < 0.2 and time.time() - last_time > 0.5:
-                    biofeedback.ecg_wav = wav_buffer[wav_index]
+                    old_index = biofeedback.ecg_index
+                    biofeedback.ecg_index = (biofeedback.ecg_index + 1) % 2
                     last_time = time.time()
                     biofeedback.ecg_ts.append(last_time)
-                    wav_index = (wav_index + 1) % 2
-                    wav_buffer[wav_index] = get_ecg_wav(biofeedback)
+                    biofeedback.ecg_wavs[old_index] = get_ecg_wav(biofeedback)
 
             num_smp = new_smp
             num_evt = new_evt
         print("Ecg thread finished")
     elif not test:
-        wav_buffer = [get_ecg_wav(biofeedback), get_ecg_wav(biofeedback)]
-        wav_index = 0
+        biofeedback.ecg_wavs = [get_ecg_wav(biofeedback), get_ecg_wav(biofeedback)]
         last_index = 0
         new_index = 0
         mock_time = biofeedback.mock_time
@@ -118,10 +116,10 @@ def ecg_feedback(biofeedback,test=False):
                     new_index = i
                     break
             if 1 in mock_ecg[last_index:new_index]:
-                biofeedback.ecg_wav = wav_buffer[wav_index]
+                old_index = biofeedback.ecg_index
+                biofeedback.ecg_index = (biofeedback.ecg_index + 1) % 2
                 biofeedback.ecg_ts.append(time.time())
-                wav_index = (wav_index + 1) % 2
-                wav_buffer[wav_index] = get_ecg_wav(biofeedback)
+                biofeedback.ecg_wavs[old_index] = get_ecg_wav(biofeedback)
             last_index = new_index
             time.sleep(0.01)
         print("Ecg thread finished")
