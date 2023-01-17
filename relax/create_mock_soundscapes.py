@@ -94,7 +94,18 @@ def get_egg_modulation(sfreq, egg_data, egg_freq):
     """
     TODO docstring
     """
+    save_dict = {}
+    save_dict["buffer"] = []
+    save_dict["med_buffer"] = []
+    save_dict["regre_med"] = []
+    save_dict["clean_med"] = []
+    save_dict["filtered"] = []
+    save_dict["filter_buffer"] = []
+    save_dict["regre"] = []
+    save_dict["clean"] = []
+    save_dict["instantaneous_phase"] = []
     mod_array = []
+    last_mod = -1
     samp_size = int(sfreq/SAMP_FREQ)
     down_sr = sfreq / GAS_DOWN
     len_buffer = int(EGG_BUFFER_DURATION * down_sr)
@@ -106,11 +117,15 @@ def get_egg_modulation(sfreq, egg_data, egg_freq):
     with alive_bar(len(index_list)) as bar:
         for index in index_list:
             egg = egg_data[index:index+samp_size]
+            i = int(index/samp_size)
             if len(egg)>0:
-                mod = egg_modulation(egg,buffer,med_buffer,filter_buffer,time_abscissa,down_sr,egg_freq)
+                mod = egg_modulation(egg,buffer,med_buffer,filter_buffer,time_abscissa,down_sr,egg_freq,last_mod,1/SAMP_FREQ,save_dict,i%SAMP_FREQ==0)
                 if mod != -1.0:
                     mod_array.append(mod)
+                last_mod = mod
             bar()
+    with open("step_egg.json","w") as f:
+        json.dump(save_dict,f)
     return mod_array
 
 def get_ecg_modulation(sfreq,ecg_data):
@@ -137,11 +152,11 @@ def get_ecg_modulation(sfreq,ecg_data):
             bar()
     return heart_beat
 
-@click.command()
+"""@click.command()
 @click.option("--subject_id", prompt="Subject id")
 @click.option("--egg_electrod",type = int, prompt="Egg electrod")
 @click.option("--egg_freq",type = float, prompt="Egg freq")
-@click.option("--day",type = str, prompt="Date", default=str(date.today()))
+@click.option("--day",type = str, prompt="Date", default=str(date.today()))"""
 def create_mock_soundscapes(subject_id,egg_electrod,egg_freq,day):
     """
     TODO docstring
@@ -174,4 +189,4 @@ def create_mock_soundscapes(subject_id,egg_electrod,egg_freq,day):
         print(f"{expected_file} was not found.")
 
 if __name__ == "__main__":
-    create_mock_soundscapes()
+    create_mock_soundscapes("EO",5,0.05,"2022-12-14")

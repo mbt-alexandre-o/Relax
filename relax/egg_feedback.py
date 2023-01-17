@@ -4,12 +4,12 @@ TODO docstring
 import numpy as np
 from relax.data_array import DataArray
 from sklearn.linear_model import LinearRegression
-from scipy.signal import firwin, lfilter
+from scipy.signal import firwin, lfilter, hilbert
 import time
 
 GAS_DOWN = 30
 EGG_BUFFER_DURATION = 45
-MED_WIN = 250
+MED_WIN = 100
 EGG_WIN = 0.015
 FIR_ORDER = 2000
 
@@ -38,31 +38,60 @@ def median_filter(data, start_from_end, window_rad):
     return returned_data
 
 
-def egg_modulation(egg,buffer,med_buffer,filter_buffer,time_abscissa,down_sr,egg_freq):
+def egg_modulation(egg,buffer,med_buffer,filter_buffer,time_abscissa,down_sr,egg_freq,last_mod,dt,dict_,save):
     """
     TODO docstring
     """
+
+    # Down sample
     down_data = buffer.add_data(egg)
+
+    # Median filtering
     med_filtered = median_filter(buffer, MED_WIN + len(down_data), MED_WIN)
-    med_buffer.add_data(med_filtered)
+    data_to_add = med_filtered[len(med_filtered)-len(down_data):]
+    data_modified = med_filtered[:len(med_filtered)-len(down_data)]
+    med_buffer[len(med_buffer)-len(data_modified):] = data_modified
+    med_buffer.add_data(data_to_add)
+
+    #Removing trend
+    model_med = LinearRegression().fit(
+        time_abscissa[:len(med_buffer)].reshape(-1, 1), med_buffer
+    )
+    regre_med = time_abscissa[:len(med_buffer)] * model_med.coef_ + model_med.intercept_
+    clean_med = med_buffer - regre_med
+
+    #Filtering
     filtered = fir_bandpass_filter(
-        med_buffer,
+        clean_med,
         egg_freq - EGG_WIN,
         egg_freq + EGG_WIN,
         down_sr,
         FIR_ORDER,
     )
-    filter_buffer.add_data(filtered[-len(down_data) :])
+
+    if len(filter_buffer) < filter_buffer.max_len and len(filter_buffer) + len(down_data) >= filter_buffer.max_len:
+        filter_buffer[filter_buffer.max_len:] = filtered
+    else:
+        filter_buffer.add_data(filtered[-len(down_data) :])
+
     if filter_buffer.full():
-        model = LinearRegression().fit(
-            time_abscissa.reshape(-1, 1), filter_buffer
-        )
-        regre = time_abscissa * model.coef_ + model.intercept_
-        mean = np.mean(filter_buffer)
-        clean = filter_buffer - regre + mean
+        
         modulation = (
-            np.mean(clean[len(clean) - len(down_data) :]) - min(clean)
-        ) / (max(clean) - min(clean))
+            np.mean(filter_buffer[len(filter_buffer) - len(down_data) :]) - min(filter_buffer)
+        ) / (max(filter_buffer) - min(filter_buffer))
+        
+        if last_mod != -1.0:
+            max_mod = last_mod + (2*np.pi*(egg_freq+EGG_WIN)*dt)
+            min_mod = last_mod - (2*np.pi*(egg_freq+EGG_WIN)*dt)
+            modulation = min(modulation,max_mod)
+            modulation = max(modulation,min_mod)
+        if save:
+            dict_["buffer"].append(np.array(buffer).tolist())
+            dict_["med_buffer"].append(np.array(med_buffer).tolist())
+            dict_["regre_med"].append(np.array(regre_med).tolist())
+            dict_["clean_med"].append(np.array(clean_med).tolist())
+            dict_["filtered"].append(filtered.tolist())
+            dict_["filter_buffer"].append(np.array(filter_buffer).tolist())
         return modulation
     else:
         return -1.0
@@ -73,6 +102,7 @@ def egg_feedback(biofeedback,test=False):
     """
     print("Egg thread started")
     if biofeedback.state == "egg":
+        last_mod = -1.0
         down_sr = biofeedback.sampling_rate / GAS_DOWN
         len_buffer = int(EGG_BUFFER_DURATION * down_sr)
         buffer = DataArray(len_buffer, down=GAS_DOWN)
@@ -88,30 +118,61 @@ def egg_feedback(biofeedback,test=False):
                 continue
             data_sample = biofeedback.ft_egg.getData([num_smp, new_smp - 1]).T
             egg = data_sample[biofeedback.egg_pos]
+
+            # Downsampling
             down_data = buffer.add_data(egg)
+
             if len(down_data) > 0 :
+
+                # Median filter
                 med_filtered = median_filter(buffer, MED_WIN + len(down_data), MED_WIN)
-                med_buffer.add_data(med_filtered)
+                data_to_add = med_filtered[len(med_filtered)-len(down_data):]
+                data_modified = med_filtered[:len(med_filtered)-len(down_data)]
+                med_buffer[len(med_buffer)-len(data_modified):] = data_modified
+                med_buffer.add_data(data_to_add)
+
+                #Removing trend
+                model_med = LinearRegression().fit(
+                    time_abscissa[:len(med_buffer)].reshape(-1, 1), med_buffer
+                )
+                regre_med = time_abscissa[:len(med_buffer)] * model_med.coef_ + model_med.intercept_
+                clean_med = med_buffer - regre_med
+
+                #Filtering
                 filtered = fir_bandpass_filter(
-                    med_buffer,
+                    clean_med,
                     biofeedback.egg_freq - EGG_WIN,
                     biofeedback.egg_freq + EGG_WIN,
                     down_sr,
                     FIR_ORDER,
                 )
-                filter_buffer.add_data(filtered[-len(down_data) :])
+
+                # Filter_buffer init at start
+                if (len(filter_buffer) < filter_buffer.max_len and 
+                    len(filter_buffer) + len(down_data) >= filter_buffer.max_len):
+                    filter_buffer[filter_buffer.max_len:] = filtered
+                else:
+                    filter_buffer.add_data(filtered[-len(down_data) :])
+
                 if filter_buffer.full():
                     if not biofeedback.audio_on:
                         biofeedback.audio_on = True
-                    model = LinearRegression().fit(
-                        time_abscissa.reshape(-1, 1), filter_buffer
-                    )
-                    regre = time_abscissa * model.coef_ + model.intercept_
-                    mean = np.mean(filter_buffer)
-                    clean = filter_buffer - regre + mean
-                    modulation = (
-                        np.mean(clean[len(clean) - len(down_data) :]) - min(clean)
-                    ) / (max(clean) - min(clean))
+
+                    #Modulation computation
+                    modulation = (np.mean(filter_buffer[len(filter_buffer) - len(down_data) :])
+                                  - min(filter_buffer)) / (max(filter_buffer) - min(filter_buffer))
+
+                    #Cap the modulation change
+                    if last_mod != -1.0:
+                        change = (2*np.pi*(biofeedback.egg_freq+EGG_WIN)*
+                              len(egg)*biofeedback.sampling_rate)
+                        max_mod = last_mod + change
+                        min_mod = last_mod - change
+                        modulation = min(modulation,max_mod)
+                        modulation = max(modulation,min_mod)
+                    last_mod = modulation
+
+                    #Update egg volume
                     biofeedback.sound_mod[0] = modulation
 
             num_smp = new_smp
