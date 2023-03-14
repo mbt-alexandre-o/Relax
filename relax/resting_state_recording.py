@@ -1,5 +1,5 @@
 """
-TODO docstring
+Module to record resting state
 """
 from datetime import date
 from pathlib import Path
@@ -30,14 +30,28 @@ CH_TYPES = ["eeg" for _ in range(len(CH_NAMES))]
 @click.option("--subject_id", type=str, prompt="Subject id")
 @click.option("--duration", type=int, prompt="Duration (s)")
 @click.option("--sampling_rate", type=int, prompt="Sampling rate", default=2048)
-@click.option("--ip_address", type=str, prompt="Fieldtrip ip", default="192.168.1.1")
+@click.option("--hostname", type=str, prompt="Fieldtrip ip", default="192.168.1.1")
 @click.option("--port", type=int, prompt="Fieldtrip port", default=1972)
-def start_recording(subject_id, duration, sampling_rate, ip_address, port):
+def start_recording(subject_id, duration, sampling_rate, hostname, port):
     """
-    TODO docstring
+    Start the recording of the resting state.
+    
+    Parameters
+    ----------
+    subject_id: String
+        unique string id of the subject. It should be the same as the one
+        used for recording the baseline.
+    duration: Int
+        Duration in second of the recording
+    sampling_rate: Float
+        sampling rate of the fieldtrip buffer (after downsampling)
+    hostname: String
+        IP address of the fieldtrip buffer
+    port: Int
+        Port number of the fieldtrip buffer
     """
     ft_client = Client()
-    ft_client.connect(ip_address, port)
+    ft_client.connect(hostname, port)
     ft_header = ft_client.getHeader()
     if ft_header is None:
         print("Connection to FieldTrip buffer failed !")
@@ -61,10 +75,9 @@ def start_recording(subject_id, duration, sampling_rate, ip_address, port):
         raw = mne.io.RawArray(data, info)
         date_string = str(date.today())
         file = str(
-            Path(__file__).parent
-            / f"../records/RS_{date_string}_{subject_id}.fif"
+            Path(__file__).parent / f"../records/RS_{date_string}_{subject_id}.fif"
         )
-        raw.save(file,overwrite=True)
+        raw.save(file, overwrite=True)
 
 
 if __name__ == "__main__":
