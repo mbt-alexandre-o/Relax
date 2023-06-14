@@ -33,7 +33,7 @@ def play_wav(biofeedback):
 
     # If we are in a mock block we start the audio immediately otherwise we are
     # waiting for a physiological thread to start it we its buffer is full.
-    if biofeedback.state == "mock":
+    if biofeedback.cond == "mock":
         biofeedback.audio_on = True
     while not biofeedback.audio_on:
         time.sleep(0.1)

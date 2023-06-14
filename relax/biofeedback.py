@@ -6,7 +6,6 @@ soundscapes, and the triggering of events.
 """
 import json
 import os
-import random
 import time
 import wave
 from datetime import date
@@ -16,6 +15,7 @@ from threading import Thread
 import click
 import numpy as np
 import serial
+import itertools
 
 from relax.ecg_feedback import ecg_feedback
 from relax.egg_feedback import egg_feedback
@@ -23,6 +23,7 @@ from relax.FieldTrip import Client
 from relax.play_wav import play_wav
 from relax.resp_feedback import resp_feedback
 
+os.chdir("/home/manip3/Desktop/Relax")
 
 def trigger_loop(biofeedback):
     """
@@ -42,19 +43,23 @@ def trigger_loop(biofeedback):
     # Start trigger
     biofeedback.serial.write(b"s")
     biofeedback.trigger_ts.append(time.time())
+    biofeedback.trigger_name.append("start")
     while biofeedback.recording:
         last = time.time()
         # The function wait to overcome the delay of trigger_delay at the
         # index delay_index modulo the number of delay (cycling).
-        while time.time() - last < trigger_delay[delay_index%n_delay]:
+        while time.time() - last < trigger_delay[delay_index%n_delay] and biofeedback.recording:
             time.sleep(0.1)
-        biofeedback.serial.write(b"t")
-        biofeedback.trigger_ts.append(time.time())
+        if biofeedback.recording:
+            biofeedback.serial.write(b"t")
+            biofeedback.trigger_ts.append(time.time())
+            biofeedback.trigger_name.append("trigger")
         # Incressing delay_index to change the delay.
         delay_index+=1
     # End trigger
     biofeedback.serial.write(b"e")
     biofeedback.trigger_ts.append(time.time())
+    biofeedback.trigger_name.append("end")
     print("Trigger thread finished")
 
 
@@ -66,7 +71,7 @@ class Biofeedback:
 
     def __init__(
         self,
-        state,
+        cond,
         subject_id,
         block,
         egg_pos,
@@ -76,13 +81,14 @@ class Biofeedback:
         sampling_rate,
         hostname,
         port,
+        master_volume,
     ):
         """
         Initialise an instance of Biofeedback
 
         Parameters
         ----------
-        state: String [egg,ecg,resp,mock]
+        condition: String [egg,ecg,resp,mock]
             specify wich biological signal will be modulated online.
         subject_id: String
             unique string id of the subject. It should be the same as the one
@@ -107,11 +113,14 @@ class Biofeedback:
         """
 
         # Define constants
-        self.SOUNDSCAPE_DURATION = 120
+        if subject_id == "TRAINING":
+            self.SOUNDSCAPE_DURATION = 60
+        else :
+            self.SOUNDSCAPE_DURATION = 180
         self.SOUNDSCAPE_FADE = 5
 
         # Set instance variables
-        self.state = state
+        self.cond = cond
         self.subject_id = subject_id
         self.block = block
         self.sampling_rate = sampling_rate
@@ -119,9 +128,11 @@ class Biofeedback:
         self.ecg_poses = ecg_poses
         self.resp_pos = resp_pos
         self.egg_freq = egg_freq
+        self.master_volume = master_volume
         self.audio_on = False
         self.audio_start = 0
         self.recording = True
+
 
         # Define some array that will be put in a json file a the end of the
         # biofeedback
@@ -130,6 +141,20 @@ class Biofeedback:
         self.gr_ts = []
         self.ecg_ts = []
         self.trigger_ts = []
+        self.trigger_name = []
+
+
+        # define the factor associated factor with each sound
+        # with in the order : 1. name of the soundscape, 2. ecg, 3. resp, 4. egg factor
+        self.factor_array = [
+            ["mountain/", 0.48, 0.37, 0.15],
+            ["river/",  0.39, 0.32, 0.29],
+            ["south/",  0.62, 0.16, 0.22],
+                            ]
+
+
+        # the soundscape order we will play
+        self.soundscapes_folder =["river/","mountain/","south/"]
 
         # Initiate the different threads that will be lauch at the start of the
         # biofeedback
@@ -145,7 +170,7 @@ class Biofeedback:
         self.initialise_wav_array()
 
         # Set sound modulation
-        self.sound_mod = [0.0, 0.5, 0.0]
+        self.sound_mod = [0.0, 1.0, 0.0]
 
         # Connect to the FieldTrip buffer
         self.ft_resp = Client()
@@ -179,8 +204,16 @@ class Biofeedback:
             print("Connection to Serial port failed !")
             self.ready = False
         if self.ready:
-            input("Press enter to start")
-            self.launch_biofeedback()
+            input("\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nMake sure you started the saving on the biosemi device.\nThen press enter to start.\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+            # Sleepinging time to reach approximatively 45 sc before the sound start for each condition
+        if self.cond == "ecg":
+            time.sleep(45-2)
+        elif self.cond == "resp":
+            time.sleep(45-10)
+        elif self.cond == "mock":
+            time.sleep(45)
+            
+        self.launch_biofeedback()
 
     def initialise_mock_modulation(self):
         """
@@ -188,23 +221,23 @@ class Biofeedback:
 
         The mock modulation data is used for testing purposes, and consists of
         JSON files containing sound modulation for the EGG, respiratory, and ECG
-        soundscapes computed with the resting state.
+        soundscapes computed with the resting condition.
         """
 
         # Finding the right mock-modulation file
-        record_folder = Path(__file__).parent / "../records/"
+        record_folder = "/home/manip3/Desktop/Relax/Data/RestingState/"
         file_list = os.listdir(record_folder)
-        expected_file = f"mock-modulation_{str(date.today())}_{self.subject_id}.json"
+        expected_file = f"RELAX_sub-{self.subject_id}_PremodulatedSignal.json"
 
         if expected_file in file_list:
-            with open(str(record_folder/expected_file),"r") as file:
+            with open(record_folder+expected_file,"r") as file:
                 mock_data = json.load(file)
                 # mock_time is the time point for every mock modulation
                 # look at create_mock_soundscape to know how it has been created
                 self.mock_time = mock_data["time"]
-                self.mock_egg = mock_data[f"egg_{self.block}"]
-                self.mock_resp = mock_data[f"resp_{self.block}"]
-                self.mock_ecg = mock_data[f"ecg_{self.block}"]
+                self.mock_egg = mock_data[f"egg_{int(self.block)}"]
+                self.mock_resp = mock_data[f"resp_{int(self.block)}"]
+                self.mock_ecg = mock_data[f"ecg_{int(self.block)}"]
         else:
             # If the file is not found, print an error message and exit.
             raise FileNotFoundError(f"{expected_file} was not found.")
@@ -213,28 +246,22 @@ class Biofeedback:
         """
         Initializes audio files for the soundscapes.
         """
-        root = Path(__file__).parent / "../soundscapes"
-        self.soundscapes_folders = [
-            str(root / folder)
-            for folder in os.listdir(str(root))
-            if os.path.isdir(str(root / folder))
-        ]
-        # Shuffle the list of soundscapes for random order.
-        random.shuffle(self.soundscapes_folders)
-
+    
+        self.root = "/home/manip3/Desktop/Relax/soundscapes"
+        
         # Open egg and resp audio files for each soundscape.
         self.egg_wavs = [
-            wave.open(folder + "/egg.wav", "rb") for folder in self.soundscapes_folders
+            wave.open(str(self.root+"/"+ folder +"/egg.wav"), "rb") for folder in self.soundscapes_folder
         ]
         self.resp_wavs = [
-            wave.open(folder + "/resp.wav", "rb") for folder in self.soundscapes_folders
+            wave.open(str(self.root+"/"+ folder +"/resp.wav"), "rb") for folder in self.soundscapes_folder
         ]
         # For ecg soundscape we initialize with silence because we you use
         # new wav file when a heart beat is detected.
         self.ecg_wavs = [wave.open(
-            str(Path(__file__).parent / "../tests_sounds/silence.wav"), "rb"
+            str("/home/manip3/Desktop/Relax/tests_sounds/silence.wav"), "rb"
         ),wave.open(
-            str(Path(__file__).parent / "../tests_sounds/silence.wav"), "rb"
+            str("/home/manip3/Desktop/Relax/tests_sounds/silence.wav"), "rb"
         )]
         # In order to minimize the delay between the heart beat and the sound
         # We preload the sound in advance and change wich sound is played by
@@ -250,7 +277,7 @@ class Biofeedback:
         Parameters
         ----------
         index: Int
-            index (and order) of the soundscape accordind to soundscapes_folders
+            index (and order) of the soundscape accordind to soundscapes_folder
 
         Returns
         -------
@@ -265,7 +292,7 @@ class Biofeedback:
         t_point = time.time() - self.audio_start
 
         # If we are not at the end of the block
-        if t_point < (sc_dur * len(self.soundscapes_folders)):
+        if t_point < (sc_dur * len(self.soundscapes_folder)):
             # Inside the soundscape time limit
             if (
                 index * sc_dur + fd_dur <= t_point
@@ -273,9 +300,8 @@ class Biofeedback:
             ):
                 return 1.0
             # Fade out
-            if (index + 1) * sc_dur - fd_dur < t_point and t_point <= (
-                index + 1
-            ) * sc_dur + fd_dur:
+            if ((index + 1) * sc_dur - fd_dur < t_point and 
+                (index + 1) * sc_dur + fd_dur) >= t_point:
                 return 1 - ((t_point - ((index + 1) * sc_dur - fd_dur)) / (fd_dur * 2))
             # Fade In
             if index * sc_dur - fd_dur <= t_point and t_point < index * sc_dur + fd_dur:
@@ -288,7 +314,7 @@ class Biofeedback:
         self.recording = False
         return 0.0
 
-    def get_layer_data_continuous(self, wav_array):
+    def get_layer_data_continuous(self, wav_array,index_type):
         """
         Return the audio data (mixed during transition) of a continuous layer
         i.e. resp or egg at the curent time.
@@ -297,6 +323,8 @@ class Biofeedback:
         ----------
         wav_array: Array of wav
             Array of wav for a layer in the session order
+
+        index_type: Index of the type of signal : 1 : respiration, 2 : egg
 
         Returns
         -------
@@ -307,9 +335,10 @@ class Biofeedback:
         # For every sound of a layer
         for i, wav in enumerate(wav_array):
             volume = self.get_sound_volume(i)
+            factor = self.factor_array[i][index_type]
             # If the sound volume isn't null we start reading its wav file
             if volume > 0.0:
-                data = np.fromstring(wav.readframes(1024), np.int16) * volume
+                data = np.fromstring(wav.readframes(1024), np.int16) * volume * factor
                 # If we reach the end of the wav file we return silence
                 # This should not happen has soundscape duration is higher than
                 # every wav file duration
@@ -336,7 +365,7 @@ class Biofeedback:
         layer_data: np.array of np.int16 of size 2048
             audio data of the layer at the current time
         """
-        layer_data = np.fromstring(wav_array[wav_index].readframes(1024), np.int16)
+        layer_data = np.fromstring(wav_array[wav_index].readframes(1024), np.int16)*self.factor_array[wav_index][1]
         # If we reach the end of the wav file we return silence
         if len(layer_data) < 2048:
             layer_data = np.zeros(2048)
@@ -353,21 +382,18 @@ class Biofeedback:
         audio_data: np.array of np.int16 of size 2048
             audio data of the soundscape at the current time
         """
-        # Every layer data should be divided by their number in order to prevent
-        # exceeding the max of np.int16
-        mod = 1 / 3
 
         # Get the audio data of every layer
         ecg_data = self.get_layer_data_discontinuous(self.ecg_wavs,self.ecg_index)
-        egg_data = self.get_layer_data_continuous(self.egg_wavs)
-        resp_data = self.get_layer_data_continuous(self.resp_wavs)
+        egg_data = self.get_layer_data_continuous(self.egg_wavs,3)
+        resp_data = self.get_layer_data_continuous(self.resp_wavs,2)
 
         # Mixing the audio data
-        audio_data = (
-            (egg_data * (0.2 + 0.8 * self.sound_mod[0])) * mod
-            + (ecg_data * self.sound_mod[1]) * mod
-            + (resp_data * (0.2 + 0.8 * self.sound_mod[2])) * mod
-        ).astype(np.int16)
+        audio_data = ((
+            (egg_data * (0.2 + 0.8 * self.sound_mod[0]))
+            + (ecg_data * self.sound_mod[1])
+            + (resp_data * (0.2 + 0.8 * self.sound_mod[2]))
+        )*self.master_volume).astype(np.int16)
 
         # Recording the volume of the continuous layers and their timestamps
         self.egg_volume.append(self.sound_mod[0])
@@ -380,35 +406,38 @@ class Biofeedback:
         """
         Save the different information of the biofeedback block.
         """
+        date_string = str(date.today())
         # Save the different variable inside a dictionary
         dict_ = {
+            "subject_id" : self.subject_id,
+            "date" : date_string,
+            "condition" : self.cond,
+            "block": self.block,
             "egg_pos": self.egg_pos,
-            "soudscapes_order": self.soundscapes_folders,
-            'block': self.block,
             "egg_freq": self.egg_freq,
-            "ecg_ts": list(np.array(self.ecg_ts, dtype=np.float)),
-            "egg_volume": list(np.array(self.egg_volume, dtype=np.float)),
-            "resp_volume": list(np.array(self.resp_volume, dtype=np.float)),
-            "gr_ts": list(np.array(self.gr_ts, dtype=np.float)),
+            "soudscapes_order": self.soundscapes_folder,
             "trigger_ts": list(np.array(self.trigger_ts, dtype=np.float)),
+            "trigger_name" : list(np.array(self.trigger_name, dtype=str)),
+            "ecg_ts": list(np.array(self.ecg_ts, dtype=np.float)),
+            "resp_volume": list(np.array(self.resp_volume, dtype=np.float)),
+            "egg_volume": list(np.array(self.egg_volume, dtype=np.float)),
+            "gr_ts": list(np.array(self.gr_ts, dtype=np.float)),
+            
         }
 
         # Get the right file name and folder
-        date_string = str(date.today())
-        file_index = 0
-        file = (Path(__file__).parent /
-                f"../records/biofeedback_{self.subject_id}_{date_string}"+
-                f"_{self.state}.json")
-        while file.is_file():
-            file_index+=1
-            file = (Path(__file__).parent /
-                    f"../records/biofeedback_{self.subject_id}_{date_string}"+
-                    f"_{self.state}_{file_index}.json")
+
+        file = ("/home/manip3/Desktop/Relax"+f"/Data/Biofeedback/RELAX_sub-{self.subject_id}_ses-{self.block}_cond-{self.cond}_biofeedback.json")
 
         # Save the dictionary as a json file
+        if not os.path.exists("Data/Biofeedback"):
+            os.mkdir("Data/Biofeedback")
         with open(str(file),"w") as open_file:
             json.dump(dict_, open_file)
         print("File saved")
+        print("-------------------------------------------\n\n")
+        print("End of the biofeedback")
+        print("\n\n-------------------------------------------")
 
     def launch_biofeedback(self):
         """
@@ -421,27 +450,43 @@ class Biofeedback:
         self.egg_thread.start()
         # Function run on the main thread
         play_wav(self)
-        # Save the information at the and of the block
-        self.save()
 
+        self .trigger_thread.join()
+        # Save the information at the and of the block
+
+        if self.subject_id == "TRAINING":
+            print("-------------------------------------------\n\n")
+            print("End of the after questions")
+            print("\n\n-------------------------------------------")
+        else: 
+            self.save()
+
+        #### ADDED TO CLOSE PORT SERIE
+
+        self.serial.close()
+
+"""
+    Function to run a biofeedback block using normal input
+"""
 
 @click.command()
 @click.option(
-    "--state",
-    prompt="State",
+    "--cond",
+    prompt="Condition",
     type=click.Choice(["egg", "ecg", "resp", "mock"], case_sensitive=False),
 )
 @click.option("--subject_id", prompt="Subject id")
 @click.option("--block", type=int, prompt="Block")
 @click.option("--egg_pos", type=int, prompt="Egg pos")
 @click.option("--egg_freq", type=float, prompt="Egg peak frequency")
-@click.option("--ecg_poses", type=list, prompt="Ecg poss", default=[1, 7])
-@click.option("--resp_pos", type=int, prompt="Resp pos", default=8)
+@click.option("--ecg_poses", type=list, prompt="Ecg poss", default=[2, 8])
+@click.option("--resp_pos", type=int, prompt="Resp pos", default=0)
 @click.option("--sampling_rate", type=int, prompt="Sampling rate", default=2048)
 @click.option("--hostname", type=str, prompt="Fieldtrip ip", default="192.168.1.1")
 @click.option("--port", type=int, prompt="Fieldtrip port", default=1972)
+@click.option("--master_volulme", type=int, prompt="master_volulme", default=0.025)
 def start_biofeedback(
-    state,
+    cond,
     subject_id,
     block,
     egg_pos,
@@ -451,23 +496,29 @@ def start_biofeedback(
     sampling_rate,
     hostname,
     port,
-):
+    master_volulme
+    ):
+    
     """
     Function to run a biofeedback block using the GUI of the click library.
     """
     Biofeedback(
-        state,
+        cond,
         subject_id,
         block,
-        egg_pos-1,
+        egg_pos,
         egg_freq,
         ecg_poses,
         resp_pos,
         sampling_rate,
         hostname,
         port,
+        master_volulme
     )
 
 
 if __name__ == "__main__":
+    print('Launch from main')
     start_biofeedback()
+else :
+    print('Import biofeedback')

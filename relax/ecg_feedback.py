@@ -76,9 +76,10 @@ def get_ecg_wav(biofeedback):
         index = floor(t_point / sc_dur)
 
     # Get the folder of the current sound being played
-    folder = biofeedback.soundscapes_folders[index]
+    folder = biofeedback.soundscapes_folder[index]
+    root = biofeedback.root
 
-    return get_random_wav(folder + "/ecg")
+    return get_random_wav(root +'/'+folder + "/ecg")
 
 
 def ecg_modulation(ecg, last_ecg_point, buffer, last_time, now):
@@ -140,7 +141,7 @@ def ecg_feedback(biofeedback, test=False):
 
     # If the state is ecg we modulate the ecg layer online according to the
     # current subject ecg
-    if biofeedback.state == "ecg":
+    if biofeedback.cond == "ecg":
 
         # We preload the wav to reduce latency when a heart beat is detected
         biofeedback.ecg_wavs = [get_ecg_wav(biofeedback), get_ecg_wav(biofeedback)]
@@ -182,7 +183,8 @@ def ecg_feedback(biofeedback, test=False):
                 # If this min is in the lowest 20% of the buffer and that it has
                 # been more than 0.5s that a heart beat have been detected then
                 # we conclude that a heart beat is occuring
-                if prop < 0.2 and time.time() - last_time > 0.5:
+                if prop < 0.2 and time.time() - last_time > 0.4:
+                    last_time = time.time()
                     old_index = biofeedback.ecg_index
                     # Change ecg_index to read a new file
                     biofeedback.ecg_index = (biofeedback.ecg_index + 1) % 2

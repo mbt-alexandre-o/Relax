@@ -234,12 +234,7 @@ def get_ecg_modulation(sfreq, ecg_data):
     return heart_beat
 
 
-@click.command()
-@click.option("--subject_id", prompt="Subject id")
-@click.option("--egg_electrod", type=int, prompt="Egg electrod")
-@click.option("--egg_freq", type=float, prompt="Egg freq")
-@click.option("--day", type=str, prompt="Date", default=str(date.today()))
-def create_mock_soundscapes(subject_id, egg_electrod, egg_freq, day):
+def create_mock_soundscapes(subject_id, egg_electrod, egg_freq):
     """
     Create shuffle mock soundscape modulations according to data from a resting
     state.
@@ -258,17 +253,17 @@ def create_mock_soundscapes(subject_id, egg_electrod, egg_freq, day):
         Day of the desire resting state mock computation.
     """
     # Get the folder were resting state are saved
-    record_folder = Path(__file__).parent / "../records/"
+    record_folder = Path(__file__).parent / "../Data/RestingState"
     file_list = os.listdir(record_folder)
     # Get the expected file according to the day and the subject
-    expected_file = f"RS_{day}_{subject_id}.fif"
+    expected_file = f"RELAX_sub-{subject_id}_RestingState.fif"
     if expected_file in file_list:
         print("Resting state file founded.")
         raw = mne.io.Raw(str(record_folder / expected_file))
         sfreq = raw.info["sfreq"]
         # Get the different physiological data
         resp_data = raw.get_data(["Resp"])[0]
-        ecg_data = raw.get_data(["EGG2ECG"])[0] - raw.get_data(["EGG8ECG"])[0]
+        ecg_data = raw.get_data(["EGG2"])[0] - raw.get_data(["EGG8"])[0]
         egg_data = raw.get_data([f"EGG{egg_electrod}"])[0]
         # Get the volume of these data
         ecg_mod = get_ecg_modulation(sfreq, ecg_data)
@@ -276,6 +271,7 @@ def create_mock_soundscapes(subject_id, egg_electrod, egg_freq, day):
         egg_mod = get_egg_modulation(sfreq, egg_data, egg_freq)
         # Add it to a dictionary
         dict_ = {
+            "subject_id": subject_id,
             "ecg_or": ecg_mod,
             "resp_or": resp_mod,
             "egg_or": egg_mod,
@@ -284,12 +280,37 @@ def create_mock_soundscapes(subject_id, egg_electrod, egg_freq, day):
         # Add shuffle volume to this dictionary
         add_recomposed_mock_to_dict(dict_)
         # Save it
-        save_file = f"mock-modulation_{day}_{subject_id}.json"
+        save_file = f"RELAX_sub-{subject_id}_PremodulatedSignal.json"
         with open(str(record_folder / save_file), "w") as f:
             json.dump(dict_, f)
     else:
         print(f"{expected_file} was not found.")
 
 
+@click.command()
+@click.option("--subject_id", prompt="Subject id")
+@click.option("--egg_electrod", type=int, prompt="Egg electrod")
+@click.option("--egg_freq", type=float, prompt="Egg freq")
+def wrapper_create_mock_soundscape(subject_id, egg_electrod, egg_freq):
+    """
+    Wrapper to create shuffle mock soundscape modulations according to data from a resting
+    state.
+
+    Parameters
+    ----------
+    subject_id: String
+        unique string id of the subject. It should be the same as the one
+        used for recording the baseline.
+    egg_electrod: Int
+        index of the egg electrod that will be used to do the sound
+        modulation in the fieldtrip config file.
+    egg_freq: Float
+        peak frequency of previously selected egg electrod.
+    day: String
+        Day of the desire resting state mock computation.
+    """
+    create_mock_soundscapes (subject_id, egg_electrod, egg_freq)
+
+
 if __name__ == "__main__":
-    create_mock_soundscapes()
+    wrapper_create_mock_soundscape()

@@ -34,6 +34,7 @@ platformdirs==2.5.4
 pooch==1.6.0
 PyAudio==0.2.12
 pydub==0.25.1
+pygame==2.3.0
 pylint==2.15.6
 pyparsing==3.0.9
 pyserial==3.5

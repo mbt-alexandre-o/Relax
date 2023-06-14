@@ -10,8 +10,8 @@ from scipy.signal import firwin, lfilter
 from relax.bufferQueue import BufferQueue
 
 RESP_BUFFER_DURATION = 10
-LOWPASS_ORDER = 1000
-LOWPASS_CUT = 1
+LOWPASS_ORDER = 200
+LOWPASS_CUT = 1.0
 
 
 def lowpass_fir_filter(data, lowcut, sampling_rate, order):
@@ -89,7 +89,7 @@ def resp_feedback(bfb, test=False):
 
     # If the state is resp we modulate the resp layer online according to the
     # current subject breathing
-    if bfb.state == "resp":
+    if bfb.cond == "resp":
         # Init resp buffer used to compute the proportion i.e. the volume
         buffer = BufferQueue(RESP_BUFFER_DURATION * bfb.sampling_rate)
         num_smp, num_evt = bfb.ft_resp.wait(

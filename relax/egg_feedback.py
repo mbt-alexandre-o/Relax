@@ -20,7 +20,7 @@ FIR_ORDER = 2000
 def bandpass_fir_filter(data, lowcut, highcut, sampling_rate, order):
     """
     Function that bandpass filter frequency of input data with a
-    Finite Impulse Response filter
+    Finite Impulse Response filter  
 
     Parameters
     ----------
@@ -206,7 +206,7 @@ def egg_feedback(biofeedback, test=False):
     print("Egg thread started")
     # If the state is egg we modulate the egg layer online according to the
     # current subject egg
-    if biofeedback.state == "egg":
+    if biofeedback.cond == "egg":
         # Init last_mod for maximum change saturation
         last_mod = -1.0
         # Compute the sampling rate after downsampling
@@ -230,7 +230,7 @@ def egg_feedback(biofeedback, test=False):
             if new_smp == num_smp:
                 continue
             data_sample = biofeedback.ft_egg.getData([num_smp, new_smp - 1]).T
-            egg = data_sample[biofeedback.egg_pos]
+            egg = data_sample[int(biofeedback.egg_pos)]
 
             # Add and downsample the egg data sample to the buffer
             down_data = buffer.add_data(egg)
@@ -267,8 +267,8 @@ def egg_feedback(biofeedback, test=False):
                 # bandpass filter
                 filtered = bandpass_fir_filter(
                     clean_med,
-                    biofeedback.egg_freq - EGG_WIN,
-                    biofeedback.egg_freq + EGG_WIN,
+                    float(biofeedback.egg_freq) - EGG_WIN,
+                    float(biofeedback.egg_freq) + EGG_WIN,
                     down_sr,
                     FIR_ORDER,
                 )
@@ -303,7 +303,7 @@ def egg_feedback(biofeedback, test=False):
                     # modulation isn't too much according to the egg max frequency
                     # maximum variation
                     if last_mod != -1.0: # Is False only fo the first calculated mod
-                        max_egg_freq = biofeedback.egg_freq + EGG_WIN
+                        max_egg_freq = float(biofeedback.egg_freq) + EGG_WIN
                         delta_t = len(egg) * biofeedback.sampling_rate
                         max_change = 2 * np.pi * max_egg_freq * delta_t
                         max_mod = last_mod + max_change
